@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/amlexiahq/amlexia-go"
+	amlexia "github.com/Amlexia/Amlexia/sdks/go"
 )
 
 func main() {

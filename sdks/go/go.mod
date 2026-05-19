@@ -1,3 +1,3 @@
-module github.com/amlexiahq/amlexia-go
+module github.com/Amlexia/Amlexia/sdks/go
 
 go 1.22
