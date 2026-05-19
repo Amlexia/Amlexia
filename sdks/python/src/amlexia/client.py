@@ -7,7 +7,10 @@ from typing import Any, Dict, List, Optional
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
 
+from .cost import enrich_event_cost
+from .diagnostic import DiagnosticState
 from .providers import detect_provider
+from .sampling import should_sample
 
 DEFAULT_INGEST_URL = "https://ingest.amlexia.com"
 DEFAULT_FLUSH_SECONDS = 5
@@ -25,6 +28,8 @@ class AmlexiaClient:
         max_retries: int = DEFAULT_MAX_RETRIES,
         environment: Optional[str] = None,
         release_version: Optional[str] = None,
+        sample_rate: float = 1.0,
+        diagnostic: bool = False,
     ) -> None:
         self._sdk_key = sdk_key
         self._ingest_url = (ingest_url or DEFAULT_INGEST_URL).rstrip("/")
@@ -33,6 +38,8 @@ class AmlexiaClient:
         self._max_retries = max_retries
         self._environment = environment
         self._release_version = release_version
+        self._sample_rate = sample_rate
+        self.diagnostic = DiagnosticState(enabled=diagnostic)
         self._buffer: List[Dict[str, Any]] = []
         self._lock = threading.Lock()
         self._flushing = False
@@ -84,8 +91,10 @@ class AmlexiaClient:
         retry_count: Optional[int] = None,
         is_webhook: Optional[bool] = None,
     ) -> None:
+        if not should_sample(self._sample_rate):
+            return
         detected = detect_provider(provider=provider, endpoint=endpoint, metadata=metadata)
-        event = {
+        event = enrich_event_cost({
             "endpoint": endpoint,
             "method": method,
             "status_code": status_code,
@@ -117,12 +126,22 @@ class AmlexiaClient:
             "cache_hit": cache_hit,
             "retry_count": retry_count or 0,
             "is_webhook": is_webhook or False,
-        }
+        })
         with self._lock:
             self._buffer.append(event)
             should_flush = len(self._buffer) >= self._max_batch_size
         if should_flush:
             self.flush()
+
+    def get_diagnostic_snapshot(self) -> DiagnosticState:
+        with self._lock:
+            self.diagnostic.events_buffered = len(self._buffer)
+        return DiagnosticState(
+            enabled=self.diagnostic.enabled,
+            events_buffered=self.diagnostic.events_buffered,
+            last_flush_at=self.diagnostic.last_flush_at,
+            last_error=self.diagnostic.last_error,
+        )
 
     def flush(self) -> None:
         with self._lock:
@@ -135,7 +154,14 @@ class AmlexiaClient:
         payload = {"sdk_key": self._sdk_key, "events": events}
         try:
             self._send_with_retry(payload)
-        except Exception:
+            self.diagnostic.last_flush_at = int(time.time() * 1000)
+            self.diagnostic.last_error = None
+            if self.diagnostic.enabled:
+                print(f"[amlexia] flushed {len(events)} events", file=__import__("sys").stderr)
+        except Exception as exc:
+            self.diagnostic.last_error = str(exc)
+            if self.diagnostic.enabled:
+                print(f"[amlexia] flush failed: {exc}", file=__import__("sys").stderr)
             with self._lock:
                 self._buffer = events + self._buffer
             raise
@@ -180,6 +206,8 @@ class AmlexiaClient:
             except HTTPError as e:
                 if e.code == 401:
                     raise ValueError("Invalid SDK key") from e
+                if e.code == 402:
+                    raise RuntimeError("Monthly usage limit exceeded") from e
                 if 400 <= e.code < 500:
                     raise RuntimeError(f"Ingestion failed: {e.code}") from e
             except URLError:

@@ -9,7 +9,7 @@ export type AlertConditionType =
   | 'cost_explosion'
   | 'token_spike'
   | 'webhook_degradation';
-export type AlertChannel = 'email' | 'slack';
+export type AlertChannel = 'email' | 'slack' | 'webhook';
 export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type TimeRange = '1h' | '24h' | '7d' | '30d';
 export type TraceStatus = 'in_progress' | 'ok' | 'error';
@@ -67,10 +67,11 @@ export interface IngestEventPayload {
   method: string;
   status_code: number;
   latency_ms: number;
-  timestamp: number;
+  timestamp?: number;
   request_size_bytes?: number | null;
   response_size_bytes?: number | null;
   cost_usd?: number | null;
+  cost_source?: 'reported' | 'estimated' | null;
   provider?: string | null;
   error_message?: string | null;
   metadata?: Record<string, unknown>;
@@ -105,7 +106,7 @@ export interface IngestRequest {
 export interface QueueEventMessage {
   type: 'events';
   project_id: string;
-  events: Array<IngestEventPayload & { id: string }>;
+  events: Array<IngestEventPayload & { id: string; cost_source?: 'reported' | 'estimated' | null }>;
 }
 
 export interface QueueProcessMessage {
@@ -180,6 +181,8 @@ export interface EventsSummaryResponse {
   avgLatencyMs: number;
   errorRate: number;
   totalCostUsd: number;
+  reportedCostUsd?: number;
+  estimatedCostUsd?: number;
   timeSeries: Array<{
     bucket: number;
     requests: number;

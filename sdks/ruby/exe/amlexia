@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "json"
+require_relative "../lib/amlexia"
+
+ingest = ENV.fetch("AMLEXIA_INGEST_URL", Amlexia::Client::DEFAULT_INGEST_URL)
+cmd = ARGV[0] || "health"
+
+case cmd
+when "version"
+  puts Amlexia::VERSION
+when "health"
+  result = Amlexia::Health.check_ingest_health(ingest_url: ingest)
+  puts JSON.pretty_generate({ ingestUrl: ingest, **result })
+  exit(result[:ok] ? 0 : 1)
+else
+  warn "Usage: amlexia [health|version]"
+  exit 1
+end

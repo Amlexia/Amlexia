@@ -1,6 +1,6 @@
 {
   "name": "@amlexiahq/shared",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Shared Amlexia types and utilities for SDKs — trace IDs, provider detection, schemas, and PII helpers.",
   "author": "Amlexia <support@amlexia.com>",
   "maintainers": ["Amlexia <support@amlexia.com>"],
@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amlexia/amlexia.git",
+    "url": "git+https://github.com/amlexiahq/amlexia.git",
     "directory": "packages/shared"
   },
   "keywords": ["amlexia", "observability", "tracing", "sdk"],

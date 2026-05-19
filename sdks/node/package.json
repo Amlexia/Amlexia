@@ -1,6 +1,9 @@
 {
   "name": "@amlexiahq/node",
-  "version": "1.0.1",
+  "version": "1.0.2",
+  "bin": {
+    "amlexia": "./bin/amlexia.js"
+  },
   "description": "Official Amlexia Node.js SDK — monitor APIs, AI providers, payments, and infrastructure with traces, latency, and provider intelligence.",
   "author": "Amlexia <support@amlexia.com>",
   "maintainers": ["Amlexia <support@amlexia.com>"],
@@ -48,8 +51,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amlexia/amlexia.git",
-    "directory": "sdks/node"
+    "url": "git+https://github.com/amlexiahq/amlexia.git",
+    "directory": "sdks/nodejs"
   },
   "keywords": [
     "amlexia",

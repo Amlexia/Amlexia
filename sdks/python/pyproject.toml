@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "amlexia"
-version = "1.0.1"
+version = "1.0.2"
 description = "Official Amlexia Python SDK — monitor APIs, AI providers, payments, and infrastructure with traces, latency, and provider intelligence."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -44,10 +44,13 @@ dependencies = [
 flask = ["flask>=2.0.0"]
 fastapi = ["fastapi>=0.100.0", "starlette>=0.27.0"]
 
+[project.scripts]
+amlexia = "amlexia.cli:main"
+
 [project.urls]
 Homepage = "https://amlexia.com"
 Documentation = "https://amlexia.com"
-Repository = "https://github.com/amlexia/amlexia"
+Repository = "https://github.com/amlexiahq/amlexia"
 "Bug Reports" = "https://amlexia.com/contact"
 Terms = "https://amlexia.com/terms"
 Privacy = "https://amlexia.com/privacy"

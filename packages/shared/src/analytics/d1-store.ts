@@ -1,5 +1,10 @@
 import { rangeToSeconds } from '../utils.js';
 import type { TimeRange, EventsSummaryResponse, LatencyRow, ErrorRow, CostRow } from '../types.js';
+import {
+  apiEventsEnvSql,
+  normalizeEnvironmentFilter,
+  type EnvironmentFilter,
+} from './env-filter.js';
 import type {
   AnalyticsStore,
   ProviderHealthRow,
@@ -23,14 +28,24 @@ export interface D1DatabaseLike {
 export class D1AnalyticsStore implements AnalyticsStore {
   constructor(private readonly db: D1DatabaseLike) {}
 
-  async getEventsSummary(projectId: string, range: TimeRange): Promise<EventsSummaryResponse> {
+  async getEventsSummary(
+    projectId: string,
+    range: TimeRange,
+    environment: EnvironmentFilter = 'all',
+  ): Promise<EventsSummaryResponse> {
     const since = Math.floor(Date.now() / 1000) - rangeToSeconds(range);
+    const env = normalizeEnvironmentFilter(environment);
+    if (env !== 'all') {
+      return this.getEventsSummaryFromRawEvents(projectId, range, since, env);
+    }
 
     const summary = await this.db
       .prepare(
         `SELECT COUNT(*) as total_requests, AVG(latency_ms) as avg_latency_ms,
          SUM(CASE WHEN status_code >= 400 THEN 1.0 ELSE 0 END) / COUNT(*) as error_rate,
-         COALESCE(SUM(cost_usd), 0) as total_cost_usd
+         COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+         COALESCE(SUM(CASE WHEN cost_source = 'reported' THEN cost_usd ELSE 0 END), 0) as reported_cost_usd,
+         COALESCE(SUM(CASE WHEN cost_source = 'estimated' THEN cost_usd ELSE 0 END), 0) as estimated_cost_usd
          FROM api_events WHERE project_id = ? AND timestamp >= ?`,
       )
       .bind(projectId, since)
@@ -39,6 +54,8 @@ export class D1AnalyticsStore implements AnalyticsStore {
         avg_latency_ms: number;
         error_rate: number;
         total_cost_usd: number;
+        reported_cost_usd: number;
+        estimated_cost_usd: number;
       }>();
 
     const daily = await this.db
@@ -57,6 +74,8 @@ export class D1AnalyticsStore implements AnalyticsStore {
         avgLatencyMs: summary?.avg_latency_ms ?? 0,
         errorRate: summary?.error_rate ?? 0,
         totalCostUsd: summary?.total_cost_usd ?? 0,
+        reportedCostUsd: summary?.reported_cost_usd ?? 0,
+        estimatedCostUsd: summary?.estimated_cost_usd ?? 0,
         timeSeries: daily.results.map((d) => ({
           bucket: d.bucket,
           requests: d.requests,
@@ -83,7 +102,206 @@ export class D1AnalyticsStore implements AnalyticsStore {
       avgLatencyMs: summary?.avg_latency_ms ?? 0,
       errorRate: summary?.error_rate ?? 0,
       totalCostUsd: summary?.total_cost_usd ?? 0,
+      reportedCostUsd: summary?.reported_cost_usd ?? 0,
+      estimatedCostUsd: summary?.estimated_cost_usd ?? 0,
       timeSeries: hourly.results.map((d) => ({
+        bucket: d.bucket,
+        requests: d.requests,
+        avgLatencyMs: d.avg_latency_ms,
+        errorRate: d.error_rate,
+        costUsd: d.cost_usd,
+      })),
+    };
+  }
+
+  async listEventsByTrace(
+    projectId: string,
+    traceId: string,
+    limit = 100,
+  ): Promise<
+    Array<{
+      id: string;
+      endpoint: string;
+      method: string;
+      statusCode: number;
+      latencyMs: number;
+      costUsd: number | null;
+      costSource: string | null;
+      timestamp: number;
+      spanId: string | null;
+    }>
+  > {
+    const rows = await this.db
+      .prepare(
+        `SELECT id, endpoint, method, status_code, latency_ms, cost_usd, cost_source, timestamp, span_id
+         FROM api_events WHERE project_id = ? AND trace_id = ?
+         ORDER BY timestamp ASC LIMIT ?`,
+      )
+      .bind(projectId, traceId, limit)
+      .all<{
+        id: string;
+        endpoint: string;
+        method: string;
+        status_code: number;
+        latency_ms: number;
+        cost_usd: number | null;
+        cost_source: string | null;
+        timestamp: number;
+        span_id: string | null;
+      }>();
+
+    return rows.results.map((r) => ({
+      id: r.id,
+      endpoint: r.endpoint,
+      method: r.method,
+      statusCode: r.status_code,
+      latencyMs: r.latency_ms,
+      costUsd: r.cost_usd,
+      costSource: r.cost_source,
+      timestamp: r.timestamp,
+      spanId: r.span_id,
+    }));
+  }
+
+  async getOpsMetrics(
+    projectId: string,
+    range: TimeRange,
+    environment: EnvironmentFilter = 'all',
+  ): Promise<{
+    slo: { availability: number; latencyP95Ms: number; targetAvailability: number };
+    spendForecastUsd: number;
+    incidents: Array<{ type: string; at: number; detail: string }>;
+    providerStatus: Array<{ provider: string; healthy: boolean; errorRate: number }>;
+  }> {
+    const since = Math.floor(Date.now() / 1000) - rangeToSeconds(range);
+    const { clause, bind } = apiEventsEnvSql(normalizeEnvironmentFilter(environment));
+
+    const base = await this.db
+      .prepare(
+        `SELECT COUNT(*) as total,
+         SUM(CASE WHEN status_code < 400 THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0) as availability,
+         COALESCE(SUM(cost_usd), 0) as cost
+         FROM api_events WHERE project_id = ? AND timestamp >= ?${clause}`,
+      )
+      .bind(projectId, since, ...(bind ? [bind] : []))
+      .first<{ total: number; availability: number; cost: number }>();
+
+    const p95 = await this.db
+      .prepare(
+        `SELECT MAX(p95_latency_ms) as p95 FROM hourly_endpoint_metrics
+         WHERE project_id = ? AND hour_bucket >= ?`,
+      )
+      .bind(projectId, since)
+      .first<{ p95: number }>();
+
+    const providers = await this.getProviderHealth(projectId, range);
+    const providerStatus = providers.map((p) => ({
+      provider: p.provider,
+      healthy: p.errorRate < 0.05,
+      errorRate: p.errorRate,
+    }));
+
+    const days = Math.max(1, rangeToSeconds(range) / 86400);
+    const dailyAvg = (base?.cost ?? 0) / days;
+    const spendForecastUsd = dailyAvg * 30;
+
+    const incidents = await this.db
+      .prepare(
+        `SELECT anomaly_type, detected_at, severity FROM anomalies
+         WHERE project_id = ? AND detected_at >= ? ORDER BY detected_at DESC LIMIT 20`,
+      )
+      .bind(projectId, since)
+      .all<{ anomaly_type: string; detected_at: number; severity: string }>();
+
+    return {
+      slo: {
+        availability: base?.availability ?? 1,
+        latencyP95Ms: p95?.p95 ?? 0,
+        targetAvailability: 0.99,
+      },
+      spendForecastUsd,
+      incidents: incidents.results.map((i) => ({
+        type: i.anomaly_type,
+        at: i.detected_at,
+        detail: i.severity,
+      })),
+      providerStatus,
+    };
+  }
+
+  async compareEnvironments(
+    projectId: string,
+    range: TimeRange,
+    envA: string,
+    envB: string,
+  ): Promise<{
+    envA: EventsSummaryResponse & { environment: string };
+    envB: EventsSummaryResponse & { environment: string };
+  }> {
+    const [a, b] = await Promise.all([
+      this.getEventsSummary(projectId, range, envA),
+      this.getEventsSummary(projectId, range, envB),
+    ]);
+    return {
+      envA: { ...a, environment: envA },
+      envB: { ...b, environment: envB },
+    };
+  }
+
+  private async getEventsSummaryFromRawEvents(
+    projectId: string,
+    range: TimeRange,
+    since: number,
+    environment: string,
+  ): Promise<EventsSummaryResponse> {
+    const { clause, bind } = apiEventsEnvSql(environment);
+    const bucketSize = range === '1h' || range === '24h' ? 3600 : 86400;
+    const summary = await this.db
+      .prepare(
+        `SELECT COUNT(*) as total_requests, AVG(latency_ms) as avg_latency_ms,
+         SUM(CASE WHEN status_code >= 400 THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0) as error_rate,
+         COALESCE(SUM(cost_usd), 0) as total_cost_usd,
+         COALESCE(SUM(CASE WHEN cost_source = 'reported' THEN cost_usd ELSE 0 END), 0) as reported_cost_usd,
+         COALESCE(SUM(CASE WHEN cost_source = 'estimated' THEN cost_usd ELSE 0 END), 0) as estimated_cost_usd
+         FROM api_events WHERE project_id = ? AND timestamp >= ?${clause}`,
+      )
+      .bind(projectId, since, ...(bind ? [bind] : []))
+      .first<{
+        total_requests: number;
+        avg_latency_ms: number;
+        error_rate: number;
+        total_cost_usd: number;
+        reported_cost_usd: number;
+        estimated_cost_usd: number;
+      }>();
+
+    const series = await this.db
+      .prepare(
+        `SELECT (timestamp / ?) * ? as bucket,
+         COUNT(*) as requests,
+         AVG(latency_ms) as avg_latency_ms,
+         SUM(CASE WHEN status_code >= 400 THEN 1.0 ELSE 0 END) / NULLIF(COUNT(*), 0) as error_rate,
+         COALESCE(SUM(cost_usd), 0) as cost_usd
+         FROM api_events WHERE project_id = ? AND timestamp >= ?${clause}
+         GROUP BY bucket ORDER BY bucket ASC`,
+      )
+      .bind(bucketSize, bucketSize, projectId, since, ...(bind ? [bind] : []))
+      .all<{
+        bucket: number;
+        requests: number;
+        avg_latency_ms: number;
+        error_rate: number;
+        cost_usd: number;
+      }>();
+
+    return {
+      totalRequests: summary?.total_requests ?? 0,
+      avgLatencyMs: summary?.avg_latency_ms ?? 0,
+      errorRate: summary?.error_rate ?? 0,
+      totalCostUsd: summary?.total_cost_usd ?? 0,
+      reportedCostUsd: summary?.reported_cost_usd ?? 0,
+      estimatedCostUsd: summary?.estimated_cost_usd ?? 0,
+      timeSeries: series.results.map((d) => ({
         bucket: d.bucket,
         requests: d.requests,
         avgLatencyMs: d.avg_latency_ms,
@@ -98,9 +316,52 @@ export class D1AnalyticsStore implements AnalyticsStore {
     range: TimeRange,
     page: number,
     limit: number,
+    environment: EnvironmentFilter = 'all',
   ): Promise<{ rows: LatencyRow[]; total: number }> {
     const since = Math.floor(Date.now() / 1000) - rangeToSeconds(range);
     const offset = (page - 1) * limit;
+    const env = normalizeEnvironmentFilter(environment);
+
+    if (env !== 'all') {
+      const { clause, bind } = apiEventsEnvSql(env);
+      const rows = await this.db
+        .prepare(
+          `SELECT endpoint, method,
+           AVG(latency_ms) as p50,
+           MAX(latency_ms) as p95,
+           MAX(latency_ms) as p99,
+           COUNT(*) as request_count
+           FROM api_events WHERE project_id = ? AND timestamp >= ?${clause}
+           GROUP BY endpoint, method ORDER BY request_count DESC LIMIT ? OFFSET ?`,
+        )
+        .bind(projectId, since, ...(bind ? [bind] : []), limit, offset)
+        .all<{
+          endpoint: string;
+          method: string;
+          p50: number;
+          p95: number;
+          p99: number;
+          request_count: number;
+        }>();
+      const total = await this.db
+        .prepare(
+          `SELECT COUNT(DISTINCT endpoint || '|' || method) as cnt
+           FROM api_events WHERE project_id = ? AND timestamp >= ?${clause}`,
+        )
+        .bind(projectId, since, ...(bind ? [bind] : []))
+        .first<{ cnt: number }>();
+      return {
+        rows: rows.results.map((r) => ({
+          endpoint: r.endpoint,
+          method: r.method,
+          p50: r.p50,
+          p95: r.p95,
+          p99: r.p99,
+          requestCount: r.request_count,
+        })),
+        total: total?.cnt ?? 0,
+      };
+    }
 
     const rows = await this.db
       .prepare(
@@ -141,17 +402,19 @@ export class D1AnalyticsStore implements AnalyticsStore {
     range: TimeRange,
     page: number,
     limit: number,
+    environment: EnvironmentFilter = 'all',
   ): Promise<{ rows: ErrorRow[]; total: number }> {
     const since = Math.floor(Date.now() / 1000) - rangeToSeconds(range);
     const offset = (page - 1) * limit;
+    const { clause, bind } = apiEventsEnvSql(normalizeEnvironmentFilter(environment));
 
     const result = await this.db
       .prepare(
         `SELECT endpoint, status_code, error_message, COUNT(*) as count, MAX(timestamp) as last_seen
-         FROM api_events WHERE project_id = ? AND timestamp >= ? AND status_code >= 400
+         FROM api_events WHERE project_id = ? AND timestamp >= ? AND status_code >= 400${clause}
          GROUP BY endpoint, status_code, error_message ORDER BY count DESC LIMIT ? OFFSET ?`,
       )
-      .bind(projectId, since, limit, offset)
+      .bind(projectId, since, ...(bind ? [bind] : []), limit, offset)
       .all<{
         endpoint: string;
         status_code: number;
@@ -163,9 +426,9 @@ export class D1AnalyticsStore implements AnalyticsStore {
     const total = await this.db
       .prepare(
         `SELECT COUNT(DISTINCT endpoint || status_code || COALESCE(error_message,'')) as cnt
-         FROM api_events WHERE project_id = ? AND timestamp >= ? AND status_code >= 400`,
+         FROM api_events WHERE project_id = ? AND timestamp >= ? AND status_code >= 400${clause}`,
       )
-      .bind(projectId, since)
+      .bind(projectId, since, ...(bind ? [bind] : []))
       .first<{ cnt: number }>();
 
     return {
@@ -185,9 +448,32 @@ export class D1AnalyticsStore implements AnalyticsStore {
     range: TimeRange,
     page: number,
     limit: number,
+    environment: EnvironmentFilter = 'all',
   ): Promise<{ rows: CostRow[] }> {
     const since = Math.floor(Date.now() / 1000) - rangeToSeconds(range);
     const offset = (page - 1) * limit;
+    const env = normalizeEnvironmentFilter(environment);
+
+    if (env !== 'all') {
+      const { clause, bind } = apiEventsEnvSql(env);
+      const result = await this.db
+        .prepare(
+          `SELECT COALESCE(provider_name, provider, 'unknown') as provider,
+           COUNT(*) as total_requests, COALESCE(SUM(cost_usd), 0) as total_cost_usd
+           FROM api_events WHERE project_id = ? AND timestamp >= ?${clause}
+           GROUP BY provider ORDER BY total_cost_usd DESC LIMIT ? OFFSET ?`,
+        )
+        .bind(projectId, since, ...(bind ? [bind] : []), limit, offset)
+        .all<{ provider: string; total_requests: number; total_cost_usd: number }>();
+      return {
+        rows: result.results.map((r) => ({
+          provider: r.provider,
+          totalRequests: r.total_requests,
+          totalCostUsd: r.total_cost_usd,
+          avgCostPerRequest: r.total_requests > 0 ? r.total_cost_usd / r.total_requests : 0,
+        })),
+      };
+    }
 
     const result = await this.db
       .prepare(

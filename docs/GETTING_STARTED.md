@@ -1,5 +1,7 @@
 # Getting started with Amlexia
 
+> **Canonical docs:** https://docs.amlexia.com — this file is a short mirror for the GitHub repo.
+
 ## 1. Create an account
 
 1. Sign up at [app.amlexia.com](https://app.amlexia.com/signup).
@@ -8,17 +10,12 @@
 
 ## 2. Install an SDK
 
-**Node.js**
-
-```bash
-npm install @amlexiahq/node
-```
-
-**Python**
-
-```bash
-pip install amlexia
-```
+| Language | Install |
+|----------|---------|
+| Node.js | `npm install @amlexiahq/node` |
+| Python | `pip install amlexia` |
+| Go | `go get github.com/amlexiahq/amlexia-go` |
+| Ruby | `gem install amlexia` |
 
 ## 3. Send your first event
 
@@ -27,15 +24,14 @@ pip install amlexia
 ```typescript
 import { AmlexiaClient } from '@amlexiahq/node';
 
-const client = new AmlexiaClient({
-  sdkKey: process.env.AMLEXIA_SDK_KEY!,
-});
+const client = AmlexiaClient.fromEnv();
 
 await client.track({
   endpoint: 'GET /health',
   method: 'GET',
   statusCode: 200,
   latencyMs: 12,
+  environment: process.env.AMLEXIA_ENVIRONMENT,
 });
 
 await client.shutdown();
@@ -44,38 +40,27 @@ await client.shutdown();
 **Python**
 
 ```python
-import os
 from amlexia import AmlexiaClient
 
-client = AmlexiaClient(sdk_key=os.environ["AMLEXIA_SDK_KEY"])
-client.track("GET /health", "GET", 200, 12)
+client = AmlexiaClient.from_env()
+client.track("GET /health", "GET", 200, 12, environment="production")
 client.shutdown()
 ```
 
-## 4. Confirm in the dashboard
+## 4. Verify
 
-Open [app.amlexia.com](https://app.amlexia.com) → your project. Within a minute you should see traffic on the dashboard and live stream.
+```bash
+npx amlexia health   # Node
+amlexia health       # Python
+```
 
-## 5. Instrument your app (recommended)
+Open [app.amlexia.com](https://app.amlexia.com) → Overview or Live.
 
-| Stack | Guide |
-|-------|--------|
-| **AI assistant (fastest)** | [AI setup prompts](./AI_SETUP_PROMPTS.md) — copy-paste for your stack |
-| Express | [sdks/node/README.md#express](../sdks/node/README.md#express) |
-| Fastify / Hono / Next.js | [sdks/node/README.md](../sdks/node/README.md) |
-| FastAPI / Flask / Django | [sdks/python/README.md](../sdks/python/README.md) |
+## 5. Next steps
 
-## 6. Configure environment
+- [Full documentation](https://docs.amlexia.com/guide/quickstart)
+- [AI setup prompts](https://docs.amlexia.com/guide/ai-prompts)
+- [SDK feature parity](https://docs.amlexia.com/sdk/feature-parity)
+- [Plans & limits](https://docs.amlexia.com/guide/plans-and-limits) (10k events/mo free tier)
 
-See [ENVIRONMENT_VARIABLES.md](./ENVIRONMENT_VARIABLES.md).
-
-## Troubleshooting
-
-| Symptom | Check |
-|---------|--------|
-| `Invalid SDK key` | Key matches project; not revoked |
-| No data in dashboard | `AMLEXIA_INGEST_URL` correct; call `shutdown()` or wait for flush interval |
-| 401 from ingest | SDK key in server env only, not browser |
-| High cardinality endpoints | Use framework middleware (paths normalized) |
-
-Support: **support@amlexia.com**
+Support: support@amlexia.com

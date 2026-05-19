@@ -7,6 +7,10 @@ export interface AmlexiaClientOptions {
   environment?: string;
   releaseVersion?: string;
   defaultSessionId?: string;
+  /** 0–1 — fraction of events to send (default 1). */
+  sampleRate?: number;
+  /** Log buffer/flush diagnostics to stderr. */
+  diagnostic?: boolean;
 }
 
 export interface TrackEvent {

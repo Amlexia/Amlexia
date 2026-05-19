@@ -6,6 +6,8 @@ Official client libraries for [Amlexia](https://amlexia.com) — operational int
 |---------|----------|---------|
 | **Node.js** | [npm `@amlexiahq/node`](https://www.npmjs.com/package/@amlexiahq/node) | `npm install @amlexiahq/node` |
 | **Python** | [PyPI `amlexia`](https://pypi.org/project/amlexia/) | `pip install amlexia` |
+| **Go** | [GitHub `sdks/go`](./sdks/go/) | `go get github.com/Amlexia/Amlexia/sdks/go@latest` |
+| **Ruby** | [GitHub `sdks/ruby`](./sdks/ruby/) | See [Ruby README](./sdks/ruby/README.md) |
 | **Shared (Node)** | [npm `@amlexiahq/shared`](https://www.npmjs.com/package/@amlexiahq/shared) | Dependency of `@amlexiahq/node` |
 
 - **Dashboard:** https://app.amlexia.com  
@@ -26,6 +28,8 @@ Official client libraries for [Amlexia](https://amlexia.com) — operational int
 | [Event fields](./docs/EVENT_FIELDS.md) | Every `track()` field and ingest mapping |
 | [Node.js SDK](./sdks/node/README.md) | API reference, Express, Fastify, Hono, Next.js, OTEL |
 | [Python SDK](./sdks/python/README.md) | API reference, FastAPI, Flask, Django |
+| [Go SDK](./sdks/go/README.md) | HTTP client, OpenAI/Anthropic helpers, tracing |
+| [Ruby SDK](./sdks/ruby/README.md) | HTTP client, OpenAI/Anthropic helpers, tracing |
 | [@amlexiahq/shared](./packages/shared/README.md) | Tracing IDs, provider detection, PII scrubbing |
 | [Examples](./examples/README.md) | Runnable samples |
 | [AI setup prompts](./docs/AI_SETUP_PROMPTS.md) | **Master prompt for Cursor/Copilot** — install, env, all frameworks, OpenAI, Stripe, cost_usd, verify |
