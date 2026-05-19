@@ -28,7 +28,7 @@ Official client libraries for [Amlexia](https://amlexia.com) — operational int
 | [Python SDK](./sdks/python/README.md) | API reference, FastAPI, Flask, Django |
 | [@amlexiahq/shared](./packages/shared/README.md) | Tracing IDs, provider detection, PII scrubbing |
 | [Examples](./examples/README.md) | Runnable samples |
-| [AI setup prompts](./docs/AI_SETUP_PROMPTS.md) | Copy-paste prompts for ChatGPT, Claude, Copilot |
+| [AI setup prompts](./docs/AI_SETUP_PROMPTS.md) | **Master prompt for Cursor/Copilot** — install, env, all frameworks, OpenAI, Stripe, cost_usd, verify |
 | [Publishing](./PUBLISHING.md) | Release process for maintainers |
 
 ---
