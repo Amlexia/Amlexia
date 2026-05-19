@@ -60,6 +60,7 @@ Open [app.amlexia.com](https://app.amlexia.com) → your project. Within a minut
 
 | Stack | Guide |
 |-------|--------|
+| **AI assistant (fastest)** | [AI setup prompts](./AI_SETUP_PROMPTS.md) — copy-paste for your stack |
 | Express | [sdks/node/README.md#express](../sdks/node/README.md#express) |
 | Fastify / Hono / Next.js | [sdks/node/README.md](../sdks/node/README.md) |
 | FastAPI / Flask / Django | [sdks/python/README.md](../sdks/python/README.md) |
