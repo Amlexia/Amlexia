@@ -1,0 +1,14 @@
+{
+  "name": "amlexia",
+  "private": true,
+  "description": "Amlexia official SDKs — Node.js and Python",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "build:shared": "pnpm --filter @amlexiahq/shared build",
+    "build:node": "pnpm --filter @amlexiahq/node build"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

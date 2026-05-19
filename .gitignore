@@ -1,0 +1,25 @@
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+.env
+.env.local
+.wrangler
+.dev.vars
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Python
+sdks/python/dist/
+sdks/python/*.egg-info/
+sdks/python/src/**/*.egg-info/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/

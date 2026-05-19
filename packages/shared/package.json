@@ -1,0 +1,42 @@
+{
+  "name": "@amlexiahq/shared",
+  "version": "1.0.1",
+  "description": "Shared Amlexia types and utilities for SDKs — trace IDs, provider detection, schemas, and PII helpers.",
+  "author": "Amlexia <support@amlexia.com>",
+  "maintainers": ["Amlexia <support@amlexia.com>"],
+  "homepage": "https://amlexia.com",
+  "bugs": {
+    "url": "https://amlexia.com/contact",
+    "email": "support@amlexia.com"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amlexia/amlexia.git",
+    "directory": "packages/shared"
+  },
+  "keywords": ["amlexia", "observability", "tracing", "sdk"],
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

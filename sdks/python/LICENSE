@@ -1,0 +1,38 @@
+Amlexia Software License Agreement (SDK)
+
+Copyright (c) 2026 Amlexia. All rights reserved.
+
+IMPORTANT: This software is proprietary and is NOT open source. You may not
+use, copy, modify, merge, publish, distribute, sublicense, or sell copies of
+this software except as expressly permitted below.
+
+1. Grant
+   Amlexia grants you a limited, non-exclusive, non-transferable, revocable
+   license to install and use this SDK solely to send telemetry to and integrate
+   with the Amlexia service (https://amlexia.com) in accordance with the
+   Amlexia Terms of Service (https://amlexia.com/terms).
+
+2. Restrictions
+   You may not:
+   (a) use the SDK except with an active Amlexia account and valid credentials;
+   (b) remove or alter proprietary notices;
+   (c) reverse engineer, decompile, or disassemble the SDK except where law
+       expressly permits and cannot be waived;
+   (d) redistribute, sublicense, or make the SDK available to third parties as
+       a standalone product or competing service;
+   (e) use the SDK to build a product that substitutes for Amlexia.
+
+3. Ownership
+   Amlexia and its licensors retain all rights, title, and interest in the SDK.
+
+4. Termination
+   This license terminates automatically if you breach these terms or your
+   Amlexia account is terminated. Upon termination, you must cease use and
+   destroy copies in your possession.
+
+5. Disclaimer
+   THE SDK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. SEE
+   https://amlexia.com/terms FOR LIMITATION OF LIABILITY.
+
+6. Contact
+   Support: support@amlexia.com

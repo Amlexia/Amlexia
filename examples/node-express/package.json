@@ -1,0 +1,16 @@
+{
+  "name": "amlexia-example-express",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/index.ts"
+  },
+  "dependencies": {
+    "@amlexiahq/node": "workspace:*",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

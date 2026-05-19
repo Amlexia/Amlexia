@@ -1,0 +1,90 @@
+{
+  "name": "@amlexiahq/node",
+  "version": "1.0.1",
+  "description": "Official Amlexia Node.js SDK — monitor APIs, AI providers, payments, and infrastructure with traces, latency, and provider intelligence.",
+  "author": "Amlexia <support@amlexia.com>",
+  "maintainers": ["Amlexia <support@amlexia.com>"],
+  "homepage": "https://amlexia.com",
+  "bugs": {
+    "url": "https://amlexia.com/contact",
+    "email": "support@amlexia.com"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./express": {
+      "types": "./dist/express.d.ts",
+      "import": "./dist/express.js"
+    },
+    "./fastify": {
+      "types": "./dist/fastify.d.ts",
+      "import": "./dist/fastify.js"
+    },
+    "./hono": {
+      "types": "./dist/hono.d.ts",
+      "import": "./dist/hono.js"
+    },
+    "./tracing": {
+      "types": "./dist/tracing.d.ts",
+      "import": "./dist/tracing.js"
+    },
+    "./otel": {
+      "types": "./dist/otel-bridge.d.ts",
+      "import": "./dist/otel-bridge.js"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amlexia/amlexia.git",
+    "directory": "sdks/node"
+  },
+  "keywords": [
+    "amlexia",
+    "observability",
+    "apm",
+    "monitoring",
+    "opentelemetry",
+    "express",
+    "fastify",
+    "hono",
+    "nextjs",
+    "api",
+    "tracing"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@amlexiahq/shared": "workspace:*"
+  },
+  "peerDependencies": {
+    "express": ">=4.0.0",
+    "fastify": ">=4.0.0",
+    "hono": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": { "optional": true },
+    "fastify": { "optional": true },
+    "hono": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3"
+  }
+}
